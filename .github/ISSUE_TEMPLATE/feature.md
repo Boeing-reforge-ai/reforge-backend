@@ -1,7 +1,7 @@
 ---
 name: 기능 추가
 about: 새 기능 구현
-title: "[FEAT] "
+title: "feat: "
 labels: feat
 ---
 
