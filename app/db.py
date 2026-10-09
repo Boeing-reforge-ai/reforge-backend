@@ -12,19 +12,19 @@ def _normalize_url(url: str) -> str:
     return url
 
 
-database_url = _normalize_url(settings.database_url)
-is_sqlite = database_url.startswith("sqlite")
-
 engine = create_engine(
-    database_url,
-    connect_args={"check_same_thread": False} if is_sqlite else {},
-    pool_pre_ping=not is_sqlite,  # 끊긴 연결 자동 감지
+    _normalize_url(settings.database_url),
+    pool_pre_ping=True,  # 끊긴 연결 자동 감지
 )
 
 
 def init_db() -> None:
     from app import models  # noqa: F401  테이블 등록용
+    from app.seed import seed_materials
+
     SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        seed_materials(session)
 
 
 def get_session():
