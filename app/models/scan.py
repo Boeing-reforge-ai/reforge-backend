@@ -1,9 +1,11 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Column, DateTime, Text
+from sqlalchemy import Column, Text
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlmodel import Field, SQLModel
+
+from app.models.base import created_at_column, utcnow
 
 
 class Scan(SQLModel, table=True):
@@ -35,14 +37,11 @@ class Scan(SQLModel, table=True):
     condition_score: float | None = None  # 상태 점수 C, CHIP은 null
     screening: str | None = None  # GREEN / YELLOW / RED, CHIP은 null
     needs_review: bool = False  # C 75~85 경계 구간
-    item_scores: dict[str, Any] | None = Field(default=None, sa_column=Column(JSONB))  # s_chem~s_struct
+    item_scores: dict[str, Any] | None = Field(default=None, sa_column=Column(JSONB))  # chem~struct
     density: float | None = None  # 계산 밀도 g/cm³
     density_err: float | None = None  # 기준 밀도 대비 오차
     reason_codes: list[str] | None = Field(default=None, sa_column=Column(ARRAY(Text)))
     reusable: bool = False  # screening = GREEN만 true
     led: str | None = None  # G / Y / R
 
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        sa_column=Column(DateTime(timezone=True), nullable=False),
-    )
+    created_at: datetime = Field(default_factory=utcnow, sa_column=created_at_column())

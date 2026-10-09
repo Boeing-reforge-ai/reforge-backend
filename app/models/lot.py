@@ -1,11 +1,8 @@
-from datetime import datetime, timezone
+from datetime import datetime
 
-from sqlalchemy import Column, DateTime
 from sqlmodel import Field, SQLModel
 
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
+from app.models.base import updated_at_column, utcnow
 
 
 class Lot(SQLModel, table=True):
@@ -18,7 +15,4 @@ class Lot(SQLModel, table=True):
     cert: bool = False  # 성적서 보유
     ys: int | None = None  # 실제 항복강도 MPa
     ys_src: str | None = None  # ys 출처 등급 A~E
-    updated_at: datetime = Field(
-        default_factory=_now,
-        sa_column=Column(DateTime(timezone=True), nullable=False, onupdate=_now),
-    )
+    updated_at: datetime = Field(default_factory=utcnow, sa_column=updated_at_column())

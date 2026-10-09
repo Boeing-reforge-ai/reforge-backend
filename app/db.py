@@ -20,11 +20,11 @@ engine = create_engine(
 
 def init_db() -> None:
     from app import models  # noqa: F401  테이블 등록용
-    from app.seed import seed_materials
+    from app.seed import seed
 
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
-        seed_materials(session)
+        seed(session)
 
 
 def get_session():
