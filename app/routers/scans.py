@@ -1,17 +1,18 @@
 import secrets
+import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Header, HTTPException, UploadFile
 from sqlmodel import Session, select
 
 from app.core.config import settings
-from app.core.criteria import SCRAP_TYPE, SHAPE_LED
+from app.core.criteria import NO_TAG_PREFIX, SCRAP_TYPE, SHAPE_LED
 from app.db import get_session
 from app.models import Lot, Material, Scan
 from app.models.base import utcnow
 from app.schemas import LatestScan, LotOut, MeasureOut, ScanCreated, ScanDetail
 from app.services.qr import QrFormatError, UnsupportedMaterialError, lot_fields, parse_qr, scan_fields
-from app.services.screening import run_screening
+from app.services.screening import run_screening, yellow_actions
 
 router = APIRouter(tags=["스캔"])
 
@@ -49,8 +50,10 @@ def create_scan(
     if session.get(Material, payload["grade"]) is None:
         raise HTTPException(400, "지원하지 않는 소재입니다.")
 
-    session.merge(Lot(**lot_fields(payload), updated_at=utcnow()))
-    scan = Scan(**scan_fields(payload), scrap_type=SCRAP_TYPE[payload["shape"]], led=SHAPE_LED[payload["shape"]])
+    # 태그 분실품은 스캔마다 임시 로트를 만든다 (다른 스캔의 로트 정보를 덮어쓰지 않도록)
+    lot_id = payload.get("lot") or f"{NO_TAG_PREFIX}{uuid.uuid4().hex[:8].upper()}"
+    session.merge(Lot(**lot_fields(payload, lot_id), updated_at=utcnow()))
+    scan = Scan(**scan_fields(payload, lot_id), scrap_type=SCRAP_TYPE[payload["shape"]], led=SHAPE_LED[payload["shape"]])
     session.add(scan)
     session.flush()
 
@@ -93,6 +96,7 @@ def get_scan(scan_id: int, session: Session = Depends(get_session)):
         item_scores=scan.item_scores,
         density_err=scan.density_err,
         reason_codes=scan.reason_codes or [],
+        yellow_actions=yellow_actions(scan.screening, scan.reason_codes, scan.condition),
         reusable=scan.reusable if done else None,
         error=scan.error,
         created_at=scan.created_at,

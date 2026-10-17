@@ -16,6 +16,7 @@ from sqlmodel import Session, col, delete, select
 from app.ai.client import ask_cached
 from app.core.criteria import (
     BASELINE,
+    NO_TAG_PREFIX,
     D_DATA,
     D_GRADE_REHEAT,
     P_WEIGHTS,
@@ -27,6 +28,7 @@ from app.core.criteria import (
     YS_REF_MPA,
 )
 from app.models import FilterResult, Lot, Material, Part, ProductionPlan, Proposal, Scan, Scenario, ScenarioPart
+from app.services.screening import yellow_actions
 
 KNOWLEDGE_BASE = json.loads((Path(__file__).parent.parent / "data" / "knowledge_base.json").read_text())
 
@@ -89,7 +91,9 @@ def qualification_filter(lot: Lot, part: Part, ys: int, ys_src: str) -> str | No
         reasons.append(f"질별 {lot.temper} ≠ 요구 {part.temper}")
     if ys < part.min_ys:
         reasons.append(f"항복강도 {ys} MPa < 요구 {part.min_ys} MPa")
-    if part.cert_required and not lot.cert:
+    if part.cert_required and lot.lot_id.startswith(NO_TAG_PREFIX):
+        reasons.append("로트 없음 (태그 분실): 성적서 필수 부품 불가")
+    elif part.cert_required and not lot.cert:
         reasons.append("성적서 필수 부품")
     if part.safety_critical and ys_src not in SAFETY_CRITICAL_SRC:
         reasons.append(f"안전 핵심 부품은 실측·성적서 강도만 인정 (현재 출처 {ys_src})")
@@ -198,7 +202,7 @@ def judge_usage(session: Session, scan: Scan, lot: Lot, evs: list[Evaluation]) -
                 "dim_mm": [scan.width_mm, scan.depth_mm, scan.height_mm],
                 "kg": scan.kg,
                 "screening": scan.screening,
-                "needs_review": scan.needs_review,
+                "yellow_actions": yellow_actions(scan.screening, scan.reason_codes, scan.condition),
                 "reason_codes": scan.reason_codes or [],
                 "condition": scan.condition,
             },
@@ -309,4 +313,11 @@ def build_response(session: Session, scan: Scan) -> dict[str, Any]:
             "sell_price": sell_price,
             "score": s.score,
         })
-    return {"candidates": candidates, "rejected": rejected, "scenarios": scenarios, "baseline": BASELINE, "recommended_id": recommended_id}
+    return {
+        "candidates": candidates,
+        "rejected": rejected,
+        "scenarios": scenarios,
+        "baseline": BASELINE,
+        "recommended_id": recommended_id,
+        "conditional": scan.screening == "YELLOW",  # 노랑: 추가 확인 통과 시 후보
+    }

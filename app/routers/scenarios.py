@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlmodel import Session, select
 
+from app.core.criteria import SCENARIO_SCREENINGS
 from app.db import get_session
 from app.models import Scenario
 from app.routers.scans import get_scan_or_404
@@ -14,7 +15,8 @@ router = APIRouter(tags=["시나리오"])
 @router.post("/scenarios/generate")
 def generate_scenarios(body: ScenarioGenerateRequest, session: Session = Depends(get_session)):
     scan = get_scan_or_404(session, body.scan_id)
-    if not scan.reusable:
+    # 초록과 노랑(확인 통과 시 후보)만 시나리오 생성
+    if scan.screening not in SCENARIO_SCREENINGS:
         raise HTTPException(409, "재사용 불가 자투리입니다.")
     try:
         return scenario_service.generate(session, scan)

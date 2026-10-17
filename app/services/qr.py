@@ -39,9 +39,7 @@ def parse_qr(raw: str) -> dict[str, Any]:
         raise QrFormatError("JSON 객체가 아님")
 
     shape = qr.get("shape")
-    required = list(QR_REQUIRED_KEYS)
-    if shape in ("LUMP", "CONTAM"):
-        required += QR_CONDITION_KEYS
+    required = [*QR_REQUIRED_KEYS, *QR_CONDITION_KEYS]
     if shape == "LUMP":
         required += QR_LUMP_KEYS
     missing = [k for k in required if k not in qr]
@@ -54,9 +52,12 @@ def parse_qr(raw: str) -> dict[str, Any]:
         raise QrFormatError(f"shape 값 오류: {shape}")
     if qr["fam"] not in SUPPORTED_FAMS:
         raise UnsupportedMaterialError(qr["fam"])
-    for k in ("lot", "grade", "temper"):
+    for k in ("grade", "temper"):
         if not isinstance(qr[k], str) or not qr[k]:
             raise QrFormatError(f"{k} 값 오류")
+    # lot 키 생략 = 태그 분실 (노랑 트리거). 키가 있으면 빈 값은 허용하지 않음
+    if "lot" in qr and (not isinstance(qr["lot"], str) or not qr["lot"]):
+        raise QrFormatError("lot 값 오류")
     if qr["cert"] not in (0, 1):
         raise QrFormatError("cert 값 오류")
     if not _is_number(qr["kg"]) or qr["kg"] <= 0:
@@ -92,9 +93,10 @@ def parse_qr(raw: str) -> dict[str, Any]:
     return qr
 
 
-def lot_fields(qr: dict[str, Any]) -> dict[str, Any]:
+def lot_fields(qr: dict[str, Any], lot_id: str) -> dict[str, Any]:
+    """lot_id: QR lot, 태그 분실이면 임시 로트 번호"""
     return {
-        "lot_id": qr["lot"],
+        "lot_id": lot_id,
         "fam": qr["fam"],
         "grade": qr["grade"],
         "temper": qr["temper"],
@@ -104,14 +106,12 @@ def lot_fields(qr: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def scan_fields(qr: dict[str, Any]) -> dict[str, Any]:
+def scan_fields(qr: dict[str, Any], lot_id: str) -> dict[str, Any]:
     """QR에 없는 키는 null로 저장 (0으로 채우지 않음)"""
     width, depth, height = qr.get("dim") or (None, None, None)
-    condition = None
-    if qr["shape"] != "CHIP":
-        condition = {k: qr.get(k) for k in CONDITION_FIELDS}
+    condition = {k: qr.get(k) for k in CONDITION_FIELDS}
     return {
-        "lot_id": qr["lot"],
+        "lot_id": lot_id,
         "qr_payload": qr,
         "shape": qr["shape"],
         "width_mm": width,

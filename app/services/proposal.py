@@ -9,6 +9,7 @@ from sqlmodel import Session, select
 from app.ai.client import ask_cached
 from app.models import Lot, Part, Proposal, Scan, Scenario, ScenarioPart
 from app.services.scenario import KNOWLEDGE_BASE, effective_ys
+from app.services.screening import yellow_actions
 
 SECTIONS = ("judgment_basis", "required_docs", "machining_plan", "expected_effect")
 
@@ -63,7 +64,7 @@ def generate(session: Session, scan: Scan, scenario: Scenario) -> Proposal:
                 "allow_mm": scan.allow_mm,
                 "kg": scan.kg,
                 "screening": scan.screening,
-                "needs_review": scan.needs_review,
+                "yellow_actions": yellow_actions(scan.screening, scan.reason_codes, scan.condition),
                 "reason_codes": scan.reason_codes or [],
             },
             "scenario": {

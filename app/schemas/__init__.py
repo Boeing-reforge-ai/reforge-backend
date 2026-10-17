@@ -35,6 +35,11 @@ class MeasureOut(BaseModel):
     qty: int
 
 
+class YellowAction(BaseModel):
+    action: str  # 작업자 조치
+    items: list[str]  # 이 조치로 확인할 항목 (예: "오일 0.4wt.%")
+
+
 class ScanDetail(BaseModel):
     scan_id: int
     status: str
@@ -47,10 +52,11 @@ class ScanDetail(BaseModel):
     led: str | None
     condition_score: float | None
     screening: str | None
-    needs_review: bool
+    needs_review: bool  # 점수 경계 구간 폐지로 항상 false (호환용)
     item_scores: dict[str, float] | None
     density_err: float | None
     reason_codes: list[str]
+    yellow_actions: list[YellowAction]  # 노랑일 때만 채워짐
     reusable: bool | None
     error: str | None
     created_at: datetime
