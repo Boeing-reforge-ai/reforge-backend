@@ -1,6 +1,7 @@
 """활용 제안서 생성 (LLM). 본문 수치는 LLM이 쓰지 않고 시스템이 metrics를 템플릿에 넣는다."""
 
 import json
+import re
 from typing import Any
 
 from pydantic import BaseModel
@@ -26,7 +27,7 @@ class ProposalDraft(BaseModel):
 PROPOSAL_SYSTEM = (
     "당신은 항공 금속 자투리의 재활용 제안서를 쓰는 소재 엔지니어입니다.\n"
     "선정된 시나리오로 제목, 요약, 판정 근거, 필요 서류, 가공 방향, 기대효과를 한국어로 작성하세요.\n"
-    "- 절감 질량·절감 금액·소재 활용률 숫자를 직접 쓰지 말고 {saved_kg}, {saved_krw}, {utilization} 자리표시자를 쓰세요. 시스템이 값을 넣습니다.\n"
+    "- 절감 질량·절감 금액·소재 활용률 숫자를 직접 쓰지 말고 {saved_kg}, {saved_krw}, {utilization} 자리표시자를 쓰세요. 시스템이 단위까지 넣으니 뒤에 kg·원·%를 붙이지 마세요.\n"
     "- 그 밖의 수치는 입력에 있는 값만 쓰고, 없는 수치나 사실을 만들지 마세요.\n"
     "- 판정 근거는 실제 LOT 값(등급, 항복강도와 출처, 성적서, 상태 판정)과 부품 요구조건을 연결하세요.\n"
     "- 각 항목은 2~4문장으로 간결하게 쓰세요.\n\n"
@@ -45,11 +46,10 @@ def metrics(scan: Scan, scenario: Scenario) -> dict[str, Any]:
 
 
 def _fill(text: str, m: dict[str, Any]) -> str:
-    return (
-        text.replace("{saved_kg}", f"{m['saved_kg']:g} kg")
-        .replace("{saved_krw}", f"{m['saved_krw']:,}원")
-        .replace("{utilization}", f"{m['utilization'] * 100:.0f}%")
-    )
+    # LLM이 자리표시자 뒤에 단위를 덧붙여도 단위가 두 번 나오지 않게 함께 치환
+    text = re.sub(r"\{saved_kg\}(\s*kg)?", f"{m['saved_kg']:g} kg", text)
+    text = re.sub(r"\{saved_krw\}(\s*원)?", f"{m['saved_krw']:,}원", text)
+    return re.sub(r"\{utilization\}(\s*%)?", f"{m['utilization'] * 100:.0f}%", text)
 
 
 def generate(session: Session, scan: Scan, scenario: Scenario) -> Proposal:
