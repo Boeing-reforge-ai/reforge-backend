@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 from typing import TypeVar
 
 from anthropic import Anthropic, APIConnectionError, APIStatusError, InternalServerError, RateLimitError
@@ -12,6 +13,7 @@ from app.core.i18n import tr
 from app.models import LlmCache
 
 client = Anthropic(api_key=settings.anthropic_api_key, timeout=60)
+log = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
 
 
@@ -27,13 +29,18 @@ def ask_json(system: str, user: str, schema: type[T], retries: int = 1) -> T:
                 output_format=schema,
             )
         except (APIConnectionError, RateLimitError, InternalServerError):
+            log.exception("LLM 연결·한도 오류 (model=%s)", settings.anthropic_model)
             raise HTTPException(503, tr("LLM API에 연결할 수 없습니다.", "Cannot connect to the LLM API."))
-        except APIStatusError:
+        except APIStatusError as e:
+            # 모델명 오류(404)·키 오류(401)·잔액 부족(400) 등. 화면에는 뭉뚱그려 보이므로 원인은 로그로 남긴다
+            log.error("LLM API 오류 status=%s model=%s body=%s", e.status_code, settings.anthropic_model, e.response.text[:500])
             raise HTTPException(502, tr("LLM 응답 형식이 올바르지 않습니다.", "The LLM response format is invalid."))
         except ValidationError:
+            log.warning("LLM 응답이 스키마와 맞지 않아 재시도 (model=%s)", settings.anthropic_model)
             continue
         # 거절·토큰 초과면 스키마를 만족하지 않을 수 있으므로 재시도
         if res.stop_reason in ("refusal", "max_tokens") or res.parsed_output is None:
+            log.warning("LLM 응답 사용 불가 stop_reason=%s parsed=%s", res.stop_reason, res.parsed_output is not None)
             continue
         return res.parsed_output
     raise HTTPException(502, tr("LLM 응답 형식이 올바르지 않습니다.", "The LLM response format is invalid."))
