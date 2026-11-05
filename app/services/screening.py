@@ -10,6 +10,7 @@ from typing import Any
 from sqlmodel import Session
 
 from app.core.config import settings
+from app.core.i18n import L
 from app.core.criteria import (
     CHEM_SCORE,
     CRACK_SCORE,
@@ -158,11 +159,11 @@ def yellow_actions(screening: str | None, reason_codes: list[str] | None, condit
     for key in THRESHOLDS:
         if f"{key}_warn" in codes or f"{key}_over" in codes:
             unit = ITEM_UNIT.get(key, "%")
-            note = {"coat": " (제거 가능)", "deform": " (교정 가능)"}.get(key, "") if f"{key}_over" in codes else ""
-            groups.setdefault(YELLOW_ACTION[key], []).append(f"{ITEM_NAME[key]} {c.get(key):g}{unit}{note}")
+            note = L({"coat": " (제거 가능)", "deform": " (교정 가능)"}.get(key, "")) if f"{key}_over" in codes else ""
+            groups.setdefault(L(YELLOW_ACTION[key]), []).append(f"{L(ITEM_NAME[key])} {c.get(key):g}{unit}{note}")
     for code, (key, label) in YELLOW_CODES.items():
         if code in codes:
-            groups.setdefault(YELLOW_ACTION[key], []).append(label)
+            groups.setdefault(L(YELLOW_ACTION[key]), []).append(L(label))
     return [{"action": action, "items": items} for action, items in groups.items()]
 
 

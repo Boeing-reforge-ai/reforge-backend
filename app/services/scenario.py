@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, col, delete, select
 
 from app.ai.client import ask_cached
+from app.core.i18n import L, current_lang, tr
 from app.core.criteria import (
     BASELINE,
     NO_TAG_PREFIX,
@@ -79,24 +80,24 @@ def shape_filter(usable: list[float], part: Part) -> str | None:
     mins = sorted((part.min_width_mm, part.min_depth_mm, part.min_height_mm), reverse=True)
     if any(u < m for u, m in zip(usable, mins)):
         fmt = lambda xs: "×".join(f"{x:g}" for x in xs)  # noqa: E731
-        return f"가용 치수 {fmt(usable)} mm가 최소 {fmt(mins)} mm보다 작음"
+        return tr(f"가용 치수 {fmt(usable)} mm가 최소 {fmt(mins)} mm보다 작음", f"Usable size {fmt(usable)} mm is smaller than the minimum {fmt(mins)} mm")
     return None
 
 
 def qualification_filter(lot: Lot, part: Part, ys: int, ys_src: str) -> str | None:
     reasons = []
     if lot.grade not in part.allowed_grades:
-        reasons.append(f"소재 {lot.grade} 미허용 (허용: {', '.join(part.allowed_grades)})")
+        reasons.append(tr(f"소재 {lot.grade} 미허용 (허용: {', '.join(part.allowed_grades)})", f"Material {lot.grade} not allowed (allowed: {', '.join(part.allowed_grades)})"))
     if part.temper and lot.temper != part.temper and not part.reheat_allowed:
-        reasons.append(f"질별 {lot.temper} ≠ 요구 {part.temper}")
+        reasons.append(tr(f"질별 {lot.temper} ≠ 요구 {part.temper}", f"Temper {lot.temper} ≠ required {part.temper}"))
     if ys < part.min_ys:
-        reasons.append(f"항복강도 {ys} MPa < 요구 {part.min_ys} MPa")
+        reasons.append(tr(f"항복강도 {ys} MPa < 요구 {part.min_ys} MPa", f"Yield strength {ys} MPa < required {part.min_ys} MPa"))
     if part.cert_required and lot.lot_id.startswith(NO_TAG_PREFIX):
-        reasons.append("로트 없음 (태그 분실): 성적서 필수 부품 불가")
+        reasons.append(tr("로트 없음 (태그 분실): 성적서 필수 부품 불가", "No lot (tag missing): not possible for parts requiring a certificate"))
     elif part.cert_required and not lot.cert:
-        reasons.append("성적서 필수 부품")
+        reasons.append(tr("성적서 필수 부품", "Part requires a certificate"))
     if part.safety_critical and ys_src not in SAFETY_CRITICAL_SRC:
-        reasons.append(f"안전 핵심 부품은 실측·성적서 강도만 인정 (현재 출처 {ys_src})")
+        reasons.append(tr(f"안전 핵심 부품은 실측·성적서 강도만 인정 (현재 출처 {ys_src})", f"Safety-critical parts accept only measured / certificate strength (current source {ys_src})"))
     return "; ".join(reasons) or None
 
 
@@ -181,7 +182,7 @@ class UsageJudgments(BaseModel):
     items: list[UsageJudgment]
 
 
-USAGE_SYSTEM = (
+USAGE_SYSTEM_KO = (
     "당신은 항공 금속 자투리의 재활용 용도를 판정하는 소재 엔지니어입니다.\n"
     "후보 부품마다 용도(usage), 필요 서류(required_docs), 판정 근거(reason)를 한국어로 작성하세요.\n"
     "- 후보 통과·탈락과 점수는 이미 시스템이 계산했으니 다시 판단하지 마세요.\n"
@@ -190,6 +191,20 @@ USAGE_SYSTEM = (
     "- required_docs는 지식 베이스의 required_docs_catalog 항목 이름을 그대로 쓰세요.\n"
     "- 입력의 모든 후보에 대해 part_id를 그대로 써서 하나씩 답하세요.\n\n"
     f"도메인 지식 베이스:\n{json.dumps(KNOWLEDGE_BASE, ensure_ascii=False, sort_keys=True)}"
+)
+
+
+USAGE_SYSTEM_EN = (
+    "You are a materials engineer who decides the recycling use of aerospace metal scrap.\n"
+    "For each candidate part, write the usage, required_docs and the rationale (reason) in English.\n"
+    "- Pass/fail of candidates and scores are already computed by the system; do not re-judge them.\n"
+    "- Write reason in 1-2 sentences, linking the actual LOT values in the input (grade, yield strength and its source, certificate, condition) to the part requirements.\n"
+    "- Do not invent numbers or facts that are not in the input.\n"
+    "- For required_docs, use the item names from the knowledge base's required_docs_catalog exactly as written (they are in Korean; the system translates them).\n"
+    "- usage must be one of the given values exactly as written.\n"
+    "- Answer once for every candidate in the input, using its part_id as given.\n"
+    "- Part names in the input are already in English.\n\n"
+    f"Domain knowledge base (Korean):\n{json.dumps(KNOWLEDGE_BASE, ensure_ascii=False, sort_keys=True)}"
 )
 
 
@@ -209,7 +224,7 @@ def judge_usage(session: Session, scan: Scan, lot: Lot, evs: list[Evaluation]) -
             "candidates": [
                 {
                     "part_id": ev.part.part_id,
-                    "name": ev.part.name,
+                    "name": L(ev.part.name),
                     "min_ys_mpa": ev.part.min_ys,
                     "cert_required": ev.part.cert_required,
                     "safety_critical": ev.part.safety_critical,
@@ -221,10 +236,10 @@ def judge_usage(session: Session, scan: Scan, lot: Lot, evs: list[Evaluation]) -
         ensure_ascii=False,
         sort_keys=True,
     )
-    result = ask_cached(session, "qualification", USAGE_SYSTEM, user, UsageJudgments)
+    result = ask_cached(session, "qualification", USAGE_SYSTEM_EN if current_lang() == "en" else USAGE_SYSTEM_KO, user, UsageJudgments)
     by_part = {j.part_id: j for j in result.items}
     if any(ev.part.part_id not in by_part for ev in evs):
-        raise HTTPException(502, "LLM 응답 형식이 올바르지 않습니다.")
+        raise HTTPException(502, tr("LLM 응답 형식이 올바르지 않습니다.", "The LLM response format is invalid."))
     return by_part
 
 
@@ -261,7 +276,7 @@ def generate(session: Session, scan: Scan) -> dict[str, Any]:
     for rank, ev in enumerate(passed, start=1):
         u = usages[ev.part.part_id]
         scenario = Scenario(
-            scan_id=scan.id, usage=u.usage, required_docs=u.required_docs, reason=u.reason,
+            scan_id=scan.id, usage=u.usage, required_docs=[L(d) for d in u.required_docs], reason=u.reason,
             **{k: round(v, 4) for k, v in ev.axes.items()},
             nrv=ev.nrv, score=ev.score, rank=rank, is_recommended=rank == 1,
         )
@@ -276,7 +291,7 @@ def rejected_list(session: Session, scan_id: int) -> list[dict[str, Any]]:
     rows = session.exec(
         select(FilterResult, Part).join(Part).where(FilterResult.scan_id == scan_id, FilterResult.passed == False).order_by(FilterResult.part_id)  # noqa: E712
     ).all()
-    return [{"part_id": p.part_id, "name": p.name, "filter_type": fr.filter_type, "reason": fr.reason} for fr, p in rows]
+    return [{"part_id": p.part_id, "name": L(p.name), "filter_type": fr.filter_type, "reason": fr.reason} for fr, p in rows]
 
 
 def build_response(session: Session, scan: Scan) -> dict[str, Any]:
@@ -286,7 +301,7 @@ def build_response(session: Session, scan: Scan) -> dict[str, Any]:
     checked = session.exec(
         select(Part).join(FilterResult).where(FilterResult.scan_id == scan.id).distinct().order_by(Part.part_id)
     ).all()
-    candidates = [{"part_id": p.part_id, "name": p.name} for p in checked if p.part_id not in rejected_ids]
+    candidates = [{"part_id": p.part_id, "name": L(p.name)} for p in checked if p.part_id not in rejected_ids]
 
     scenarios = []
     recommended_id = None
@@ -298,7 +313,7 @@ def build_response(session: Session, scan: Scan) -> dict[str, Any]:
         scenarios.append({
             "scenario_id": s.id,
             "rank": s.rank,
-            "parts": [{"part_id": p.part_id, "name": p.name} for p in parts],
+            "parts": [{"part_id": p.part_id, "name": L(p.name)} for p in parts],
             "usage": s.usage,
             "required_docs": s.required_docs,
             "reason": s.reason,
@@ -317,7 +332,7 @@ def build_response(session: Session, scan: Scan) -> dict[str, Any]:
         "candidates": candidates,
         "rejected": rejected,
         "scenarios": scenarios,
-        "baseline": BASELINE,
+        "baseline": {**BASELINE, "name": L(BASELINE["name"])},
         "recommended_id": recommended_id,
         "conditional": scan.screening == "YELLOW",  # 노랑: 추가 확인 통과 시 후보
     }

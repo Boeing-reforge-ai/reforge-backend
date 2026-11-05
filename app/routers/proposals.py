@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
+from app.core.i18n import tr
 from app.db import get_session
 from app.models import Proposal, Scenario
 from app.routers.scans import get_scan_or_404
@@ -13,7 +14,7 @@ router = APIRouter(tags=["제안서"])
 def get_proposal_or_404(session: Session, proposal_id: int) -> Proposal:
     proposal = session.get(Proposal, proposal_id)
     if proposal is None:
-        raise HTTPException(404, "제안서를 찾을 수 없습니다.")
+        raise HTTPException(404, tr("제안서를 찾을 수 없습니다.", "Proposal not found."))
     return proposal
 
 
@@ -22,7 +23,7 @@ def generate_proposal(body: ProposalGenerateRequest, session: Session = Depends(
     scan = get_scan_or_404(session, body.scan_id)
     scenario = session.get(Scenario, body.scenario_id)
     if scenario is None or scenario.scan_id != scan.id:
-        raise HTTPException(404, "시나리오를 찾을 수 없습니다.")
+        raise HTTPException(404, tr("시나리오를 찾을 수 없습니다.", "Scenario not found."))
     proposal = proposal_service.generate(session, scan, scenario)
     return proposal_service.to_response(session, proposal)
 

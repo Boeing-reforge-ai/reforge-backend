@@ -7,6 +7,7 @@ from sqlmodel import Session, select
 
 from app.core.config import settings
 from app.core.criteria import NO_TAG_PREFIX, SCRAP_TYPE, SHAPE_LED
+from app.core.i18n import tr
 from app.db import get_session
 from app.models import Lot, Material, Scan
 from app.models.base import utcnow
@@ -22,13 +23,13 @@ IMAGE_EXTS = (".jpg", ".jpeg", ".png")
 def get_scan_or_404(session: Session, scan_id: int) -> Scan:
     scan = session.get(Scan, scan_id)
     if scan is None:
-        raise HTTPException(404, "스캔 데이터를 찾을 수 없습니다.")
+        raise HTTPException(404, tr("스캔 데이터를 찾을 수 없습니다.", "Scan data not found."))
     return scan
 
 
 def verify_station(x_station_key: str | None = Header(None)) -> None:
     if not settings.station_key or not x_station_key or not secrets.compare_digest(x_station_key, settings.station_key):
-        raise HTTPException(401, "인증되지 않은 스테이션입니다.")
+        raise HTTPException(401, tr("인증되지 않은 스테이션입니다.", "Unauthorized station."))
 
 
 @router.post("/scans", status_code=201, response_model=ScanCreated, dependencies=[Depends(verify_station)])
@@ -40,15 +41,15 @@ def create_scan(
 ):
     ext = Path(image.filename or "").suffix.lower()
     if ext not in IMAGE_EXTS:
-        raise HTTPException(400, "지원하지 않는 이미지 형식입니다.")
+        raise HTTPException(400, tr("지원하지 않는 이미지 형식입니다.", "Unsupported image format."))
     try:
         payload = parse_qr(qr)
     except QrFormatError:
-        raise HTTPException(400, "QR 형식이 올바르지 않습니다.")
+        raise HTTPException(400, tr("QR 형식이 올바르지 않습니다.", "Invalid QR format."))
     except UnsupportedMaterialError:
-        raise HTTPException(400, "지원하지 않는 소재입니다.")
+        raise HTTPException(400, tr("지원하지 않는 소재입니다.", "Unsupported material."))
     if session.get(Material, payload["grade"]) is None:
-        raise HTTPException(400, "지원하지 않는 소재입니다.")
+        raise HTTPException(400, tr("지원하지 않는 소재입니다.", "Unsupported material."))
 
     # 태그 분실품은 스캔마다 임시 로트를 만든다 (다른 스캔의 로트 정보를 덮어쓰지 않도록)
     lot_id = payload.get("lot") or f"{NO_TAG_PREFIX}{uuid.uuid4().hex[:8].upper()}"

@@ -8,6 +8,7 @@ from pydantic import BaseModel, ValidationError
 from sqlmodel import Session, select
 
 from app.core.config import settings
+from app.core.i18n import tr
 from app.models import LlmCache
 
 client = Anthropic(api_key=settings.anthropic_api_key, timeout=60)
@@ -26,16 +27,16 @@ def ask_json(system: str, user: str, schema: type[T], retries: int = 1) -> T:
                 output_format=schema,
             )
         except (APIConnectionError, RateLimitError, InternalServerError):
-            raise HTTPException(503, "LLM API에 연결할 수 없습니다.")
+            raise HTTPException(503, tr("LLM API에 연결할 수 없습니다.", "Cannot connect to the LLM API."))
         except APIStatusError:
-            raise HTTPException(502, "LLM 응답 형식이 올바르지 않습니다.")
+            raise HTTPException(502, tr("LLM 응답 형식이 올바르지 않습니다.", "The LLM response format is invalid."))
         except ValidationError:
             continue
         # 거절·토큰 초과면 스키마를 만족하지 않을 수 있으므로 재시도
         if res.stop_reason in ("refusal", "max_tokens") or res.parsed_output is None:
             continue
         return res.parsed_output
-    raise HTTPException(502, "LLM 응답 형식이 올바르지 않습니다.")
+    raise HTTPException(502, tr("LLM 응답 형식이 올바르지 않습니다.", "The LLM response format is invalid."))
 
 
 def ask_cached(session: Session, task: str, system: str, user: str, schema: type[T]) -> T:

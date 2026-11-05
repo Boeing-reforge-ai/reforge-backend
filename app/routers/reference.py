@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Depends, Query
 from sqlmodel import Session, select
 
+from app.core.i18n import L
 from app.db import get_session
 from app.models import Part, ProductionPlan
 from app.schemas import PartOut, PlanOut
@@ -17,8 +18,9 @@ def list_parts(material: str | None = None, session: Session = Depends(get_sessi
         parts = [p for p in parts if material in p.allowed_grades]
     return [
         PartOut(
-            **p.model_dump(include={"part_id", "name", "allowed_grades", "temper", "reheat_allowed", "min_ys", "cert_required",
+            **p.model_dump(include={"part_id", "allowed_grades", "temper", "reheat_allowed", "min_ys", "cert_required",
                                     "safety_critical", "part_kg", "moq", "stage", "sell_price", "sell_price_src"}),
+            name=L(p.name),
             min_dims_mm=[p.min_width_mm, p.min_depth_mm, p.min_height_mm],
             cost=p.cost_pre + p.cost_proc + p.cost_insp + p.cost_log,
         )
@@ -36,6 +38,6 @@ def list_plans(weeks: int = Query(3, ge=1), session: Session = Depends(get_sessi
         .order_by(ProductionPlan.due_date, ProductionPlan.id)
     ).all()
     return [
-        PlanOut(plan_id=plan.id, part_id=part.part_id, part_name=part.name, quantity=plan.quantity, due_date=plan.due_date)
+        PlanOut(plan_id=plan.id, part_id=part.part_id, part_name=L(part.name), quantity=plan.quantity, due_date=plan.due_date)
         for plan, part in rows
     ]

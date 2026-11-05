@@ -1,11 +1,12 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
+from app.core.i18n import set_lang
 from app.db import init_db
 from app.routers import health, proposals, reference, scans, scenarios
 
@@ -16,7 +17,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Reforge AI Pipeline API", lifespan=lifespan)
+app = FastAPI(title="Reforge AI Pipeline API", lifespan=lifespan, dependencies=[Depends(set_lang)])
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
