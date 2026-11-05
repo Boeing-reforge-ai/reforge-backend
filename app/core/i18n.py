@@ -1,16 +1,16 @@
-"""요청 언어(ko/en) 처리. 응답 문구와 LLM 생성 언어를 요청마다 고른다.
+"""언어(ko/en) 처리. 응답 문구와 LLM 생성 언어를 고른다.
 
-언어는 ?lang=en|ko 또는 Accept-Language 헤더로 받는다 (둘 다 없으면 ko).
-앱 전체 dependency(set_lang)가 요청 컨텍스트에 저장하므로, 서비스 코드는 current_lang()으로 꺼내 쓴다.
+현재는 영어 전용이다. set_lang이 요청 헤더와 상관없이 항상 en으로 고정한다.
+한국어를 다시 켜려면 set_lang에서 ?lang=ko 또는 Accept-Language를 읽어 _lang에 넣으면 된다.
+(한국어 문구·프롬프트는 코드에 그대로 남아 있다)
+서비스 코드는 current_lang()/tr()/L()로 꺼내 쓴다.
 """
 
 from contextvars import ContextVar
 from typing import Literal
 
-from fastapi import Header, Query
-
 Lang = Literal["ko", "en"]
-DEFAULT_LANG: Lang = "ko"
+DEFAULT_LANG: Lang = "en"
 _lang: ContextVar[Lang] = ContextVar("lang", default=DEFAULT_LANG)
 
 
@@ -23,9 +23,8 @@ def tr(ko: str, en: str) -> str:
 
 
 # async여야 같은 컨텍스트에 값이 저장되어 뒤이어 실행되는 동기 엔드포인트에서 보인다
-async def set_lang(lang: str | None = Query(None), accept_language: str | None = Header(None)) -> None:
-    raw = (lang or accept_language or "").strip().lower()
-    _lang.set("en" if raw.startswith("en") else "ko" if raw.startswith("ko") else DEFAULT_LANG)
+async def set_lang() -> None:
+    _lang.set(DEFAULT_LANG)
 
 
 # DB·상수에는 한국어 원문을 두고, 영어 요청일 때만 표시 시점에 바꾼다 (키 = 한국어 원문)

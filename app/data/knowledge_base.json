@@ -1,36 +1,36 @@
 {
   "usages": {
-    "목업": "형상·조립 확인용 모형. 하중을 받지 않으며 성적서가 없어도 쓸 수 있다.",
-    "EM": "Engineering Model. 기능·환경 시험용 모델로 실제 소재 물성과 추적성이 중요하다.",
-    "지그": "가공·조립 공정에서 부품을 고정하는 치구. 강성·치수 안정성이 중요하고 비행 부품이 아니다.",
-    "보조도구": "공구·블랭크·소재 재판매 등 직접 부품이 아닌 활용."
+    "목업": "Mock-up: a model for checking shape and assembly. It carries no load and can be used without a certificate.",
+    "EM": "Engineering Model: a model for functional and environmental testing. Real material properties and traceability matter.",
+    "지그": "Jig / fixture: a tool that holds parts during machining and assembly. Stiffness and dimensional stability matter, and it is not a flight part.",
+    "보조도구": "Auxiliary tool: uses that are not direct parts, such as tools, blanks, or reselling the material."
   },
   "required_docs_catalog": [
-    "원본 재질증명서 (LOT 성적서)",
-    "치수 검사 성적서",
-    "LOT 추적 기록 (원본 로트 → 절단 파생 ID)",
-    "열처리 이력",
-    "비파괴검사 결과",
-    "표면 세척·전처리 기록"
+    "Original mill certificate (lot certificate)",
+    "Dimensional inspection report",
+    "Lot traceability record (original lot → derived cut ID)",
+    "Heat-treatment history",
+    "Non-destructive testing results",
+    "Surface cleaning / pre-treatment record"
   ],
   "data_source_grades": {
-    "A": "현재 시편 직접 측정 (최고 신뢰도)",
-    "B": "해당 원본 LOT 성적서 (높은 신뢰도)",
-    "C": "공장·MES·검사 이력",
-    "D": "재료 핸드북 대표값 (실측 대체 불가)",
-    "E": "계산·추정값"
+    "A": "Measured directly on the current specimen (highest reliability)",
+    "B": "Certificate of the original lot (high reliability)",
+    "C": "Factory / MES / inspection history",
+    "D": "Typical value from a materials handbook (cannot replace measurement)",
+    "E": "Calculated or estimated value"
   },
   "materials": {
-    "Ti-6Al-4V": "α+β 티타늄 합금(Grade 5). 비강도가 높아 항공·우주 고부가 용도. 성적서와 열처리 이력이 완전한 LOT일수록 가치가 크다.",
-    "Ti-Grade2": "상업용 순티타늄. 내식성·연성이 좋아 화학·열교환 설비 후보.",
-    "Al-7075": "7000계 고강도 알루미늄(T6). 응력부식에 민감해 사용 환경과 균열·부식 이력이 중요하다.",
-    "Al-6061": "6000계 범용 알루미늄(T6). 가공성·내식성이 좋아 일반 구조·지그 후보."
+    "Ti-6Al-4V": "α+β titanium alloy (Grade 5). High specific strength, used in high-value aerospace applications. A lot with a complete certificate and heat-treatment history is worth more.",
+    "Ti-Grade2": "Commercially pure titanium. Good corrosion resistance and ductility; a candidate for chemical and heat-exchange equipment.",
+    "Al-7075": "7000-series high-strength aluminum (T6). Sensitive to stress corrosion, so the usage environment and crack/corrosion history matter.",
+    "Al-6061": "6000-series general-purpose aluminum (T6). Good machinability and corrosion resistance; a candidate for general structures and jigs."
   },
   "rules": [
-    "안전 핵심 부품은 실측(A)·성적서(B) 강도만 인정한다.",
-    "성적서가 없으면 고위험·항공 후보에 쓸 수 없다.",
-    "가능하면 현재 형상 그대로 재판매 → 최소 가공 → 다른 제품용 소재·블랭크 → 선별 스크랩 → 재용해 순으로 검토한다.",
-    "균열 의심이 있으면 비파괴검사 결과를 필요 서류에 넣는다.",
-    "YELLOW 구간 오염(세척·산화층 제거 등)이 있으면 전처리 기록을 필요 서류에 넣는다."
+    "Safety-critical parts accept only measured (A) or certificate (B) strength.",
+    "Without a certificate, the scrap cannot be used for high-risk or aerospace candidates.",
+    "Where possible, consider in this order: resell in current shape → minimal machining → material or blank for other products → sorted scrap → remelting.",
+    "If a crack is suspected, include the non-destructive testing results in the required documents.",
+    "If there is contamination in the YELLOW range (cleaning, oxide-layer removal, etc.), include the pre-treatment record in the required documents."
   ]
 }

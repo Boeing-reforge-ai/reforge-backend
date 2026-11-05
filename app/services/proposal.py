@@ -44,7 +44,7 @@ PROPOSAL_SYSTEM_EN = (
     "- Tie the judgment basis to the actual LOT values (grade, yield strength and source, certificate, condition assessment) and the part requirements.\n"
     "- Keep each item to 2-4 concise sentences.\n"
     "- Part names in the input are already in English. Write required_docs as one document per line.\n\n"
-    f"Domain knowledge base (Korean):\n{json.dumps(KNOWLEDGE_BASE, ensure_ascii=False, sort_keys=True)}"
+    f"Domain knowledge base:\n{json.dumps(KNOWLEDGE_BASE, ensure_ascii=False, sort_keys=True)}"
 )
 
 

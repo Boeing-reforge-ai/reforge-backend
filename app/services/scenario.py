@@ -200,11 +200,11 @@ USAGE_SYSTEM_EN = (
     "- Pass/fail of candidates and scores are already computed by the system; do not re-judge them.\n"
     "- Write reason in 1-2 sentences, linking the actual LOT values in the input (grade, yield strength and its source, certificate, condition) to the part requirements.\n"
     "- Do not invent numbers or facts that are not in the input.\n"
-    "- For required_docs, use the item names from the knowledge base's required_docs_catalog exactly as written (they are in Korean; the system translates them).\n"
-    "- usage must be one of the given values exactly as written.\n"
+    "- For required_docs, use the item names from the knowledge base's required_docs_catalog exactly as written (they are already in English).\n"
+    "- usage must be one of the allowed values exactly as written (the Korean codes 목업, EM, 지그, 보조도구; see the knowledge base for their meaning).\n"
     "- Answer once for every candidate in the input, using its part_id as given.\n"
     "- Part names in the input are already in English.\n\n"
-    f"Domain knowledge base (Korean):\n{json.dumps(KNOWLEDGE_BASE, ensure_ascii=False, sort_keys=True)}"
+    f"Domain knowledge base:\n{json.dumps(KNOWLEDGE_BASE, ensure_ascii=False, sort_keys=True)}"
 )
 
 
