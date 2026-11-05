@@ -1,7 +1,7 @@
 import hashlib
 import json
 import logging
-from typing import TypeVar
+from typing import Callable, TypeVar
 
 from anthropic import Anthropic, APIConnectionError, APIStatusError, InternalServerError, RateLimitError
 from fastapi import HTTPException
@@ -17,8 +17,11 @@ log = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
 
 
-def ask_json(system: str, user: str, schema: type[T], retries: int = 1) -> T:
-    """LLM에 서술만 맡기고, 응답은 구조화 출력으로 받아 Pydantic 스키마로 검증한다."""
+def ask_json(system: str, user: str, schema: type[T], retries: int = 1, validate: Callable[[T], bool] | None = None) -> T:
+    """LLM에 서술만 맡기고, 응답은 구조화 출력으로 받아 Pydantic 스키마로 검증한다.
+
+    validate: 스키마 외의 내용 검증(예: 후보 part_id가 빠짐없이 있는지). 실패하면 재시도한다.
+    """
     for _ in range(retries + 1):
         try:
             res = client.messages.parse(
@@ -42,19 +45,35 @@ def ask_json(system: str, user: str, schema: type[T], retries: int = 1) -> T:
         if res.stop_reason in ("refusal", "max_tokens") or res.parsed_output is None:
             log.warning("LLM 응답 사용 불가 stop_reason=%s parsed=%s", res.stop_reason, res.parsed_output is not None)
             continue
+        if validate and not validate(res.parsed_output):
+            log.warning("LLM 응답이 내용 검증에 실패해 재시도 (model=%s)", settings.anthropic_model)
+            continue
         return res.parsed_output
     raise HTTPException(502, tr("LLM 응답 형식이 올바르지 않습니다.", "The LLM response format is invalid."))
 
 
-def ask_cached(session: Session, task: str, system: str, user: str, schema: type[T]) -> T:
-    """같은 요청(모델+프롬프트+입력)은 LLM을 다시 부르지 않고 LLM_CACHE 응답을 쓴다."""
+def ask_cached(
+    session: Session, task: str, system: str, user: str, schema: type[T],
+    retries: int = 1, validate: Callable[[T], bool] | None = None,
+) -> T:
+    """같은 요청(모델+프롬프트+입력)은 LLM을 다시 부르지 않고 LLM_CACHE 응답을 쓴다.
+
+    validate를 통과하지 못한 응답은 캐시에 저장하지 않고, 이미 저장된 것도 무시하고 새로 받아 덮어쓴다.
+    """
     payload = json.dumps([task, settings.anthropic_model, system, user], ensure_ascii=False)
     request_hash = hashlib.sha256(payload.encode()).hexdigest()
     cached = session.exec(select(LlmCache).where(LlmCache.request_hash == request_hash)).first()
     if cached:
-        return schema.model_validate(cached.response)
-    result = ask_json(system, user, schema)
-    session.add(LlmCache(request_hash=request_hash, task=task, response=result.model_dump()))
+        hit = schema.model_validate(cached.response)
+        if validate is None or validate(hit):
+            return hit
+        log.warning("캐시된 LLM 응답이 내용 검증에 실패해 다시 요청 (task=%s)", task)
+    result = ask_json(system, user, schema, retries=retries, validate=validate)
+    if cached:
+        cached.response = result.model_dump()
+        session.add(cached)
+    else:
+        session.add(LlmCache(request_hash=request_hash, task=task, response=result.model_dump()))
     session.commit()
     return result
 

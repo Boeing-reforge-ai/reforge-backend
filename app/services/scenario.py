@@ -236,7 +236,13 @@ def judge_usage(session: Session, scan: Scan, lot: Lot, evs: list[Evaluation]) -
         ensure_ascii=False,
         sort_keys=True,
     )
-    result = ask_cached(session, "qualification", USAGE_SYSTEM_EN if current_lang() == "en" else USAGE_SYSTEM_KO, user, UsageJudgments)
+    expected = {ev.part.part_id for ev in evs}
+    # LLM이 없는 part_id(C-04 등)를 쓰거나 후보를 빠뜨리면 캐시하지 않고 다시 요청
+    complete = lambda r: expected <= {j.part_id for j in r.items}  # noqa: E731
+    result = ask_cached(
+        session, "qualification", USAGE_SYSTEM_EN if current_lang() == "en" else USAGE_SYSTEM_KO, user, UsageJudgments,
+        retries=2, validate=complete,
+    )
     by_part = {j.part_id: j for j in result.items}
     if any(ev.part.part_id not in by_part for ev in evs):
         raise HTTPException(502, tr("LLM 응답 형식이 올바르지 않습니다.", "The LLM response format is invalid."))
