@@ -22,6 +22,7 @@ class Part(SQLModel, table=True):
     part_kg: float | None = None  # 완성 부품 질량, null이면 가용 치수 × 기준 밀도 (블랭크)
     moq: int = 1
     stage: int  # 활용 단계 1~6
+    usage: str | None = None  # 용도 코드 목업/EM/지그/보조도구. 부품이 정하고 LLM은 판정하지 않음
     sell_price: int | None = None  # 판매가 원, null이면 SCAN.quote 사용
     sell_price_src: str | None = None  # 판매가 출처 등급 A~E
     cost_pre: int = 0  # 전처리비

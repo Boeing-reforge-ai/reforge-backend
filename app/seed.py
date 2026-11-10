@@ -17,20 +17,20 @@ PARTS = [
     Part(
         part_id="C-01", name="조립 치구", allowed_grades=["Ti-6Al-4V"],
         min_width_mm=100, min_depth_mm=60, min_height_mm=25, min_ys=600,
-        cert_required=False, part_kg=0.95, moq=1, stage=2,
+        cert_required=False, part_kg=0.95, moq=1, stage=2, usage="지그",
         sell_price=250_000, cost_proc=70_000,
     ),
     Part(
         part_id="C-02", name="위성 브래킷 목업", allowed_grades=["Ti-6Al-4V"],
         min_width_mm=90, min_depth_mm=50, min_height_mm=20, min_ys=800,
-        cert_required=True, part_kg=0.45, moq=1, stage=2,
+        cert_required=True, part_kg=0.45, moq=1, stage=2, usage="목업",
         sell_price=300_000, cost_proc=115_000,
     ),
     Part(
         # 질량은 가용 치수 × 기준 밀도, 판매가·비용은 QR quote 사용
         part_id="C-03", name="Ti 규격 블랭크", allowed_grades=["Ti-6Al-4V"],
         min_width_mm=60, min_depth_mm=40, min_height_mm=15, min_ys=828,
-        cert_required=True, part_kg=None, moq=1, stage=4,
+        cert_required=True, part_kg=None, moq=1, stage=4, usage="보조도구",
     ),
 ]
 

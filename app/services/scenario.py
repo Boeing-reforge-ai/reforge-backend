@@ -1,13 +1,13 @@
 """시나리오 생성 (판정 기준과 계산법 3·4장)
 
 형상 필터 → 자격 필터 → 우선순위 점수 P → 상위 3개 용도 판정(LLM) 순서로 실행한다.
-점수와 통과·탈락은 전부 시스템이 계산하고, LLM은 usage·required_docs·reason만 쓴다.
+점수와 통과·탈락은 전부 시스템이 계산하고, 용도(usage)는 부품이 정하고, LLM은 required_docs·reason만 쓴다.
 """
 
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 from fastapi import HTTPException
 from pydantic import BaseModel
@@ -173,7 +173,6 @@ def evaluate(session: Session, scan: Scan, lot: Lot) -> list[Evaluation]:
 
 class UsageJudgment(BaseModel):
     part_id: str
-    usage: Literal["목업", "EM", "지그", "보조도구"]
     required_docs: list[str]
     reason: str
 
@@ -184,7 +183,7 @@ class UsageJudgments(BaseModel):
 
 USAGE_SYSTEM_KO = (
     "당신은 항공 금속 자투리의 재활용 용도를 판정하는 소재 엔지니어입니다.\n"
-    "후보 부품마다 용도(usage), 필요 서류(required_docs), 판정 근거(reason)를 한국어로 작성하세요.\n"
+    "후보 부품마다 필요 서류(required_docs)와 판정 근거(reason)를 한국어로 작성하세요. 용도(usage)는 입력에 부품별로 이미 정해져 있으니 그대로 따르세요.\n"
     "- 후보 통과·탈락과 점수는 이미 시스템이 계산했으니 다시 판단하지 마세요.\n"
     "- reason은 1~2문장으로, 입력에 있는 실제 LOT 값(등급, 항복강도와 출처, 성적서, 상태)과 부품 요구조건을 연결하세요.\n"
     "- 입력에 없는 수치나 사실을 만들지 마세요.\n"
@@ -196,12 +195,11 @@ USAGE_SYSTEM_KO = (
 
 USAGE_SYSTEM_EN = (
     "You are a materials engineer who decides the recycling use of aerospace metal scrap.\n"
-    "For each candidate part, write the usage, required_docs and the rationale (reason) in English.\n"
+    "For each candidate part, write the required_docs and the rationale (reason) in English. The usage is already fixed per part in the input; follow it.\n"
     "- Pass/fail of candidates and scores are already computed by the system; do not re-judge them.\n"
     "- Write reason in 1-2 sentences, linking the actual LOT values in the input (grade, yield strength and its source, certificate, condition) to the part requirements.\n"
     "- Do not invent numbers or facts that are not in the input.\n"
     "- For required_docs, use the item names from the knowledge base's required_docs_catalog exactly as written (they are already in English).\n"
-    "- usage must be one of the allowed values exactly as written (the Korean codes 목업, EM, 지그, 보조도구; see the knowledge base for their meaning).\n"
     "- Answer once for every candidate in the input, using its part_id as given.\n"
     "- Part names in the input are already in English.\n\n"
     f"Domain knowledge base:\n{json.dumps(KNOWLEDGE_BASE, ensure_ascii=False, sort_keys=True)}"
@@ -229,6 +227,7 @@ def judge_usage(session: Session, scan: Scan, lot: Lot, evs: list[Evaluation]) -
                     "cert_required": ev.part.cert_required,
                     "safety_critical": ev.part.safety_critical,
                     "stage": ev.part.stage,
+                    "usage": ev.part.usage,
                 }
                 for ev in evs
             ],
@@ -282,7 +281,7 @@ def generate(session: Session, scan: Scan) -> dict[str, Any]:
     for rank, ev in enumerate(passed, start=1):
         u = usages[ev.part.part_id]
         scenario = Scenario(
-            scan_id=scan.id, usage=u.usage, required_docs=[L(d) for d in u.required_docs], reason=u.reason,
+            scan_id=scan.id, usage=ev.part.usage or "보조도구", required_docs=[L(d) for d in u.required_docs], reason=u.reason,
             **{k: round(v, 4) for k, v in ev.axes.items()},
             nrv=ev.nrv, score=ev.score, rank=rank, is_recommended=rank == 1,
         )
