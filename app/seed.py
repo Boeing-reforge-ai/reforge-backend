@@ -30,7 +30,7 @@ PARTS = [
         # 질량은 가용 치수 × 기준 밀도, 판매가·비용은 QR quote 사용
         part_id="C-03", name="Ti 규격 블랭크", allowed_grades=["Ti-6Al-4V"],
         min_width_mm=60, min_depth_mm=40, min_height_mm=15, min_ys=828,
-        cert_required=True, part_kg=None, moq=1, stage=4, usage="보조도구",
+        cert_required=True, part_kg=None, moq=1, stage=4, usage="블랭크",
     ),
 ]
 

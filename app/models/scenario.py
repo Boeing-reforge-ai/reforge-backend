@@ -25,7 +25,7 @@ class Scenario(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     scan_id: int = Field(foreign_key="scan.id", index=True)
-    usage: str  # 목업 / EM / 지그 / 보조도구 (LLM)
+    usage: str  # 목업 / EM / 지그 / 블랭크 / 보조도구 (부품 기준)
     required_docs: list[str] = Field(default_factory=list, sa_column=Column(ARRAY(Text), nullable=False))  # LLM
     reason: str  # 용도 판정 근거 (LLM)
     d_m: float  # 소재 적합성 0~1 (35점)

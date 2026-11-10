@@ -3,7 +3,8 @@
     "목업": "Mock-up: a model for checking shape and assembly. It carries no load and can be used without a certificate.",
     "EM": "Engineering Model: a model for functional and environmental testing. Real material properties and traceability matter.",
     "지그": "Jig / fixture: a tool that holds parts during machining and assembly. Stiffness and dimensional stability matter, and it is not a flight part.",
-    "보조도구": "Auxiliary tool: uses that are not direct parts, such as tools, blanks, or reselling the material."
+    "블랭크": "Blank / raw stock: standard-size stock to be machined into other products later. It is a raw material, not a tool.",
+    "보조도구": "Auxiliary tool: uses that are not direct parts, such as tools or reselling the material."
   },
   "required_docs_catalog": [
     "Original mill certificate (lot certificate)",
